@@ -18,10 +18,22 @@ proc tilt_l(data: TextField): TextField =
   for i in 0..data.len-data[0].len:
     for j in 0..<min(data.len,data[0].len):
       result[data[0].len+i-1].add data[i+j][j]
-
+  for c in data.len-data[0].high..data[0].high:
+    for k in 0..<data[0].len-c:
+      result[data[0].high+c].add data[c+k][k]
 
 proc tilt_r(data: TextField): TextField =
   result = newSeq[string](data.len + data[0].len - 1)
+  for c in 0..<data[0].high:
+    for k in 0..c:
+      result[c].add data[k][c-k]
+  for i in 0..data.len-data[0].len:
+    for j in 0..<min(data.len,data[0].len):
+      result[data[0].len+i-1].add data[i+j][data[0].high-j]
+  for c in data.len-data[0].high..data[0].high:
+    for k in 0..<data[0].len-c:
+      result[data[0].high+c].add data[c+k][data[0].high-k]
+
 
 proc count_h(data: TextField): Natural =
   result = 0
@@ -30,13 +42,14 @@ proc count_h(data: TextField): Natural =
     while true:
       let npos = find(line, sword, pos)
       if npos == -1:
-        return
+        break
       result.inc
       pos = npos+1
+    pos = 0
     while true:
       let npos = find(line, sword.reversed, pos)
       if npos == -1:
-        return
+        break
       result.inc
       pos = npos+1
 
@@ -44,18 +57,23 @@ proc count_v(data: TextField): Natural =
   let data = data.transpose
   return count_h(data)
 
+proc count_tlbr(data:TextField): Natural =
+  let data = data.tilt_l
+  return count_h(data)
+
+proc count_trbl(data:TextField): Natural =
+  let data = data.tilt_r
+  return count_h(data)
+
 proc main =
   let input = getInputFile()
 
   let data = input.readFile.strip.splitlines #.mapIt(it.toSeq).toTensor
 
-  echo data
+  let occurences =
+      data.count_h + data.count_v + data.count_trbl + data.count_tlbr
 
-  echo data.tilt_l
-
-  #for line in input.lines:
-  #  discard
-
+  echo occurences
 
 when isMainModule:
   main()
