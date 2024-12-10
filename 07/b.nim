@@ -3,15 +3,20 @@ import parsecli
 
 type
   Op = enum
-    Add, Multiply
+    Add, Multiply, Concat
   Test = object
     value: Natural
     factors: seq[Natural]
+
+proc `||`(a, b: Natural): Natural =
+  a * (10^(log(b.float, 10.0).int + 1)) + b
+  #parseInt($a & $b).Natural
 
 proc apply(a, b: int; op: Op): int =
   case op:
     of Add:       a + b
     of Multiply:  a * b
+    of Concat:    a || b
 
 proc apply(vals: seq[Natural]; ops: seq[Op]): int =
   var accu = vals[0]
@@ -41,7 +46,7 @@ proc isValid(test: Test; ops: seq[Op]): bool =
 proc main =
   let input = getInputFile()
 
-  let ops = @[Add, Multiply]
+  let ops = @[Add, Multiply, Concat]
 
   var testValue = 0
   for line in input.lines:
