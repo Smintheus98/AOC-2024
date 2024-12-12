@@ -1,0 +1,90 @@
+import std / [ strutils, sequtils, math ]
+import parsecli
+
+const MaxNumThreads {.intdefine.} = 8
+
+type StoneLine = seq[int]
+
+proc digLen(i: int): Natural =
+  log10(i.float32).Natural + 1
+
+proc blink_pseudoinplace(sl: var StoneLine) =
+  var buf: StoneLine = @[]
+  for stone in sl:
+    if stone == 0:
+      buf.add 1
+    elif stone.digLen mod 2 == 0:
+      let separator = 10 ^ (stone.digLen div 2)
+      buf.add stone div separator
+      buf.add stone mod separator
+    else:
+      buf.add stone * 2024
+  sl = buf
+
+proc blink_copy(sl: StoneLine): StoneLine =
+  result = @[]
+  for stone in sl:
+    if stone == 0:
+      result.add 1
+    elif stone.digLen mod 2 == 0:
+      let separator = 10 ^ (stone.digLen div 2)
+      result.add stone div separator
+      result.add stone mod separator
+    else:
+      result.add stone * 2024
+
+proc blinkn(startval: int; n: Natural): Natural =
+  var psl: StoneLine = @[startval]
+  for i in 1..n:
+    psl.blink_pseudoinplace
+  return psl.len
+
+proc blink_memory_efficient(sl: StoneLine; times: Natural): Natural =
+  for startval in sl:
+    echo "Start value: " & $startval
+    result += startval.blinkn(times)
+
+
+type ThArg = tuple
+  startval: int
+  n: Natural
+  id: Natural
+  ress: ptr seq[Natural]
+
+proc blinkn_par(args: ThArg) {.thread.} =
+  var psl: StoneLine = @[args.startval]
+  for i in 1..args.n:
+    psl.blink_pseudoinplace
+  args.ress[args.id] = psl.len
+
+proc blink_memory_efficient_par(sl: StoneLine; times: Natural): Natural =
+  var results = newSeq[Natural](sl.len)
+  var threads = newSeq[Thread[ThArg]](sl.len)
+  var numThreadsRunning = 0
+  for i, startval in sl:
+    echo "Start value: " & $startval
+    createThread(threads[i], blinkn_par, (startval, times, i.Natural, results.addr))
+    numThreadsRunning.inc
+    if numThreadsRunning < MaxNumThreads:
+      continue
+    
+    
+  #  results[i] = blinkn(startval, times)
+  #for res in results:
+  #  result += ^res
+
+
+proc main =
+  let input = getInputFile()
+  let data = input.readFile.strip.splitWhitespace.map parseInt
+
+  var stoneLine: StoneLine = data
+
+  echo stoneLine.blink_memory_efficient(50)
+
+  quit QuitSuccess
+
+
+when isMainModule:
+  main()
+
