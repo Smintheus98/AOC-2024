@@ -31,17 +31,30 @@ proc blink_copy(sl: StoneLine): StoneLine =
     else:
       result.add stone * 2024
 
-proc blink_rec(startval: int; iter, max_iter: Natural; res: var Natural) =
-  if iter == max_iter:
+proc blink_rec(startval: int; iter, max_iter, iter_step: Natural; res: var int) =
+  var iter_step = min(iter_step, max_iter - iter)
+  let iter = iter + iter_step
+  var sl = @[startval]
+  for it in 0..<iter_step:
+    sl.blink_pseudoinplace
+  if iter.succ >= max_iter:
+    res += sl.len
     return
-  for elem in @[startval].blink_copy:
-    blink_rec(elem, iter.pred, max_iter, res)
+  for elem in sl:
+    blink_rec(elem, iter, max_iter, iter_step, res)
 
 
-proc blinkn_rec(sl: StoneLine; times: Natural): Natural =
+proc blinkn_rec(sl: StoneLine; times: Natural; iter_step: Natural = 1): Natural =
   for startval in sl:
     echo "Start value: " & $startval
-    result += startval.blink_rec(startval, 0.Natural, times, result)
+    startval.blink_rec(0, times, iter_step, result)
+
+proc blinkn_rec_omp(sl: StoneLine; times: Natural; iter_step: Natural = 1): Natural =
+  for i in `||`(0, sl.high, "parallel for reduction(+:result)"):
+    let startval = sl[i]
+    echo "Started for value: " & $startval
+    startval.blink_rec(0, times, iter_step, result)
+    echo "Ended for value: " & $startval
 
 
 proc main =
@@ -50,7 +63,7 @@ proc main =
 
   var stoneLine: StoneLine = data
 
-  echo stoneLine.blink_memory_efficient(50)
+  echo stoneLine.blinkn_rec_omp(75, 15)
 
   quit QuitSuccess
 
