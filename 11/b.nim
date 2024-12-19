@@ -1,77 +1,38 @@
-import std / [ strutils, sequtils, math ]
+import std / [ strutils, sequtils, math, tables ]
 import parsecli
 
-const MaxNumThreads {.intdefine.} = 8
+proc dec[A](t: var CountTable[A]; key: A; val = 1) = t[key] = t[key] - val
 
-type StoneLine = seq[int]
+type
+  Stone = int
+  StoneLine = seq[Stone]
 
 proc digLen(i: int): Natural =
   log10(i.float32).Natural + 1
 
-proc blink_pseudoinplace(sl: var StoneLine) =
-  var buf: StoneLine = @[]
-  for stone in sl:
-    if stone == 0:
-      buf.add 1
-    elif stone.digLen mod 2 == 0:
-      let separator = 10 ^ (stone.digLen div 2)
-      buf.add stone div separator
-      buf.add stone mod separator
-    else:
-      buf.add stone * 2024
-  sl = buf
+proc blink(stone: Stone): StoneLine =
+  if stone == 0:
+    @[1]
+  elif stone.digLen mod 2 == 0:
+    let separator = 10 ^ (stone.digLen div 2)
+    @[stone div separator, stone mod separator]
+  else:
+    @[stone * 2024]
 
-proc blink_copy(sl: StoneLine): StoneLine =
-  result = @[]
-  for stone in sl:
-    if stone == 0:
-      result.add 1
-    elif stone.digLen mod 2 == 0:
-      let separator = 10 ^ (stone.digLen div 2)
-      result.add stone div separator
-      result.add stone mod separator
-    else:
-      result.add stone * 2024
-
-proc blinkn(startval: int; n: Natural): Natural =
-  var psl: StoneLine = @[startval]
-  for i in 1..n:
-    psl.blink_pseudoinplace
-  return psl.len
-
-proc blink_memory_efficient(sl: StoneLine; times: Natural): Natural =
-  for startval in sl:
-    echo "Start value: " & $startval
-    result += startval.blinkn(times)
-
-
-type ThArg = tuple
-  startval: int
-  n: Natural
-  id: Natural
-  ress: ptr seq[Natural]
-
-proc blinkn_par(args: ThArg) {.thread.} =
-  var psl: StoneLine = @[args.startval]
-  for i in 1..args.n:
-    psl.blink_pseudoinplace
-  args.ress[args.id] = psl.len
-
-proc blink_memory_efficient_par(sl: StoneLine; times: Natural): Natural =
-  var results = newSeq[Natural](sl.len)
-  var threads = newSeq[Thread[ThArg]](sl.len)
-  var numThreadsRunning = 0
-  for i, startval in sl:
-    echo "Start value: " & $startval
-    createThread(threads[i], blinkn_par, (startval, times, i.Natural, results.addr))
-    numThreadsRunning.inc
-    if numThreadsRunning < MaxNumThreads:
-      continue
-    
-    
-  #  results[i] = blinkn(startval, times)
-  #for res in results:
-  #  result += ^res
+proc blinkn(stones: StoneLine; n: Natural): Natural =
+  var ct: CountTable[Stone] = stones.toCountTable
+  for i in 0..<n:
+    var tmp_ct = ct
+    for stone in ct.keys:
+      let stone_count = ct[stone]
+      for st in stone.blink:
+        tmp_ct.inc(st, stone_count)
+      if tmp_ct[stone] == stone_count:
+        tmp_ct.del(stone)
+      else:
+        tmp_ct.dec(stone, stone_count)
+    ct = tmp_ct
+  return ct.values.toSeq.sum
 
 
 proc main =
@@ -80,7 +41,7 @@ proc main =
 
   var stoneLine: StoneLine = data
 
-  echo stoneLine.blink_memory_efficient(50)
+  echo stoneLine.blinkn(75)
 
   quit QuitSuccess
 
